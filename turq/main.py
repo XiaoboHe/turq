@@ -12,7 +12,7 @@ import turq.editor
 import turq.mock
 from turq.util.http import guess_external_url
 
-DEFAULT_ADDRESS = ''       # All interfaces
+DEFAULT_ADDRESS = ''  # All interfaces
 DEFAULT_MOCK_PORT = 13085
 DEFAULT_EDITOR_PORT = 13086
 DEFAULT_RULES = 'error(404)\n'
@@ -52,8 +52,8 @@ def parse_args(argv):
                         help=('listen on IPv6 instead of IPv4 '
                               '(or on both, depending on the system)'))
     parser.add_argument('-r', '--rules', metavar='PATH',
-                        type=argparse.FileType('r'),
-                        help='file with initial rules code')
+                        type=str,
+                        help='file or file dir with initial rules code')
     parser.add_argument('-P', '--editor-password', metavar='PASSWORD',
                         default=random_password(),
                         help='explicitly set editor password '
@@ -90,9 +90,22 @@ def setup_logging(args):
 
 
 def run(args):
-    rules = args.rules.read() if args.rules else DEFAULT_RULES
-    mock_server = turq.mock.MockServer(args.bind, args.mock_port, args.ipv6,
-                                       rules)
+    rules = ''
+
+    if args.rules and os.path.exists(args.rules):
+        if os.path.isdir(args.rules):
+            for file_name in os.listdir(args.rules):
+                file_path = os.path.join(args.rules, file_name)
+                if os.path.isfile(file_path):
+                    with open(file_path) as f:
+                        rules += f.read()
+                        rules += '\n'
+        elif os.path.isfile(args.rules):
+            with open(args.rules) as f:
+                rules += f.read()
+
+    rules = DEFAULT_RULES if rules == '' else rules
+    mock_server = turq.mock.MockServer(args.bind, args.mock_port, args.ipv6, rules)
 
     if args.no_editor:
         editor_server = None
